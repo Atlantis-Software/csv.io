@@ -10,37 +10,6 @@ function isReadableStream(obj) {
     typeof (obj._readableState === 'object');
 }
 
-/*
-param: {
-  rowDelimiter (String) used to split lines default: "\n\r"
-  delimiter (String) used to separate each column
-  header (boolean) display header or not default false
-
-  displayEmptyValue (Boolean) display header or not
-  columns (array) [
-    column (Object) {
-      name (String) the name of the column
-      header (string) display in header default name
-      type (String) the type of the column possible value are:
-        - "string"
-        - "date"
-        - "number"
-        - "boolean"
-        - custom type (require formatter)
-      formatter (function(value) return String) function that return a formatted string for this column overide formatters default
-    }
-  ]
-  formatters (object) { default formatters for each type
-    string (function)
-    date (function)
-    number (function)
-    boolean (function)
-    custom (funtion) use for custom type
-  }
-}
-
-*/
-
 function exportCsv(param) {
   var self = this;
 
@@ -136,10 +105,11 @@ function exportCsv(param) {
     asynk.each(self.columns, function(column, cb) {
       var data = chunk[column.name];
 
+      var formatter;
       if (self.sendingHeader) {
-        var formatter = self.formatters['doNothing'];
+        formatter = self.formatters['doNothing'];
       } else {
-        var formatter = column.formatter || self.formatters[column.type];
+        formatter = column.formatter || self.formatters[column.type];
       }
       if (!formatter || !_.isFunction(formatter)) {
         throw new Error('no formatter for column ' + column.name);
@@ -194,6 +164,7 @@ exportCsv.prototype.setLineFn = function(fn) {
 };
 
 exportCsv.prototype.process = function(input) {
+  var self = this;
   if (this.noMoreInput) {
     return;
   }
@@ -206,12 +177,16 @@ exportCsv.prototype.process = function(input) {
     this.inputIsStream = true;
     this.noMoreInput = true;
     input.pipe(this.entryStream);
+  } else if (_.isArray(input)) {
+    input.forEach(function(line) {
+      self.entryStream.write(line);
+    });
   } else {
     this.entryStream.write(input);
   }
 };
 
-exportCsv.prototype.end = function(cb) {
+exportCsv.prototype.end = function() {
   this.noMoreInput = true;
   if (!this.inputIsStream) {
     this.entryStream.end();

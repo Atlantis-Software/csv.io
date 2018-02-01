@@ -69,6 +69,9 @@ function importCsv(options) {
         return void 0;
       }
       return !!val;
+    },
+    doNothing: function(column, val) {
+      return val;
     }
   };
 
@@ -102,8 +105,7 @@ function importCsv(options) {
   .pipe(iconv.decodeStream(encodingCorrespondences[options.encoding] || 'utf8'))
   .pipe(self.parser)
   .pipe(self.transformer)
-  .pipe(self.processLine)
-  // .resume();
+  .pipe(self.processLine);
 }
 
 importCsv.prototype.setLineFn = function(fn) {
@@ -273,18 +275,3 @@ importCsv.prototype.getPipes = function(options) {
 };
 
 module.exports = importCsv;
-
-// Example
-
-// var testData = fs.readFileSync(__dirname + '/test.csv');
-// if columns aren't specified, the parser will return each line as an array
-// var options = {columns: ['column1', 'column2', ...]};
-// importer.read(testData, options, req,
-// function(entry, cb) {
-//   someProcessing(entry);
-//   cb();
-// }).on('end', function() {
-//   Called when all data has been processed
-// }).on('error', function(err) {
-//   Handle errors here
-// });

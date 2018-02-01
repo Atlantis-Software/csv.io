@@ -1,6 +1,5 @@
 var mocha = require('mocha');
 var fs = require('fs');
-var asynk = require('asynk');
 var path = require('path');
 
 

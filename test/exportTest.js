@@ -45,14 +45,14 @@ describe('Export', function() {
     '3;"blabla3";Wed Jan 01 1997 01:00:00 GMT+0100 (CET);789;1\n',
     '4;;;null;\n',
     '5;;;;\n'
-  ]
+  ];
 
   var expectedResult = `1;"blabla1";Sun Jan 01 1995 01:00:00 GMT+0100 (CET);123;1
 2;"blabla2";Mon Jan 01 1996 01:00:00 GMT+0100 (CET);456;0
 3;"blabla3";Wed Jan 01 1997 01:00:00 GMT+0100 (CET);789;1
 4;;;null;
 5;;;;
-`
+`;
 
   var options = {
     rowDelimiter: '\n',
@@ -182,7 +182,6 @@ describe('Export', function() {
   it('should work with a stream even if the internal buffer get full', function(done) {
     options.showHeaders = false;
     var exportCsv = new ExportCsv(options);
-    var i = 0;
 
     exportCsv.setLineFn(function(line, cb) {
       cb();

@@ -139,7 +139,6 @@ describe('Import', function() {
 
   it('should work with a stream even if the internal buffer get full', function(done) {
     var importCsv = new ImportCsv(options);
-    var i = 0;
 
     importCsv.setLineFn(function(line, cb) {
       return cb();
@@ -157,7 +156,6 @@ describe('Import', function() {
 
   it('should work with a buffer even if the internal buffer get full', function(done) {
     var importCsv = new ImportCsv(options);
-    var i = 0;
 
     importCsv.setLineFn(function(line, cb) {
       return cb();
