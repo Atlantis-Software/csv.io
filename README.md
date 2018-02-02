@@ -67,33 +67,38 @@ Once everything is set, you can initialize the importer :
 var importCsv = new importer(options);
 ```
 
-You must then set the function that will be called on each fully parsed line, with `setLineFn` :
+You can then get your output stream with the `getOutput` function. If given a function as parameter, it will be called on each line returned.
 
 ```javascript
-  importCsv.setLineFn(function(line, cb) {
+  var outputStream = importCsv.getOutput(function(line, cb) {
     insertIntoDb(line); // Or whatever you want to do with your new shiny object
     return cb(); // Don't forget to call the callback
   });
 ```
 
-You can then start feeding data to your importer, through the `process` function. You can feed it either multiple buffer or strings...
+You can then start feeding data to your importer, either by writing into your stream...
 ```javascript
-importCsv.process(someBuffer);
-importCsv.process(someOtherBuffer);
-importCsv.process(someString);
+importCsv.write(someBuffer);
+importCsv.write(someOtherBuffer);
+importCsv.write(someString);
 ```
 
-... or single stream, but take note that as soon as you feed it a stream, this instance of the importer won't accept input anymore :
+... or by piping a stream :
 
 ```javascript
-importCsv.process(someStream);
-importCsv.process(anotherBuffer); // The importer will just ignore this input
+someInputStream.pipe(importCsv);
 ```
 
-The actual processing hasn't started yet. To start it, use the `end` function, wich will start the processing and return a stream so you can listen for `error` and `finish` event (**DO NOT** listen for the `data` event or you will break all backpressure handling and will flood your memory, use the `setLineFn` function instead).
+You can also pipe your output into a stream :
 
 ```javascript
-importCsv.end()
+output.pipe(anotherStream);
+```
+
+You can listen for `error` and `finish` event on your output stream (the output stream being either the one returned by `getOutput` or the last stream you piped it into). **DO NOT** listen for the `data` event or you will break all backpressure handling and will flood your memory !
+
+```javascript
+anotherStream // since earlier we piped output to anotherStream, we listen to the latter
 .on('error', function(err) {
   // Handle your errors here
 })
@@ -101,8 +106,6 @@ importCsv.end()
   // you can has cheezburger
 });
 ```
-
-Obviously, once you called `end`, you cannot call `process` anymore.
 
 ### Exporter
 The exporter is really similar in usage to the importer, but its options are slightly differents :
@@ -132,37 +135,4 @@ Like the importer, you can now instantiate the exporter :
 exportCsv = new exporter(options);
 ```
 
-There is two way to use the exporter : either you define a line by line function to call with `setLineFn`, or you don't and you get the result in one block at the end. The latter is not recommended with big volume as it will quickly fill the memory.
-
-As with the importer, you feed data through `process`. It accepts either an object or an array of objects.
-
-Example without line callback :
-```javascript
-exportCsv.process(data);
-
-exportCsv.end()
-.on('error', function(err) {
-  // Handle errors here
-})
-.on('finish', function() {
-  console.log(exportCsv.result); // You can get your processed result here
-});
-```
-
-Example with line callback (recommended) :
-```javascript
-exportCsv.setLineFn(function(line, cb) {
-  // Do whatever you want with the csv line
-  cb();
-});
-
-exportCsv.process(data);
-
-exportCsv.end()
-.on('error', function(err) {
-  // Handle errors here
-})
-.on('finish', function() {
-  console.log(exportCsv.result); // Result is empty
-});
-```
+Once this is done, the exporter behave exactly like the importer : an input stream, an output stream and an optional function called on each line.

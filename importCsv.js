@@ -3,19 +3,11 @@ var csv = require('csv');
 var through2 = require('through2');
 var iconv = require('iconv-lite');
 var asynk = require('asynk');
-var fs = require('fs');
-var stream = require('stream');
 
 var encodingCorrespondences = {
   'windows-1252': 'win1252',
   'ascii': 'utf8'
 };
-
-function isReadableStream(obj) {
-  return obj instanceof stream.Stream &&
-    typeof (obj._read === 'function') &&
-    typeof (obj._readableState === 'object');
-}
 
 function importCsv(options) {
   if (!options || !options.columns || !options.columns.length) {
@@ -24,8 +16,6 @@ function importCsv(options) {
 
   var self = this;
   this.result = [];
-  this.noMoreInput = false;
-  this.inputIsStream = false;
   this.options = options;
   this.columns = options.columns;
   this.emptyValue = options.emptyValue || '';
@@ -91,8 +81,7 @@ function importCsv(options) {
       this.push(dataChunk.slice(0, 1000));
       dataChunk = dataChunk.slice(1000, dataChunk.length);
     }
-    this.push(dataChunk);
-    callback();
+    callback(null, dataChunk);
   };
 
   if (options.inputMode === 'object') {
@@ -101,38 +90,35 @@ function importCsv(options) {
     this.entryStream = through2(entryProcess);
   }
 
+  this.processLine.nbOfPipes = 0;
+  this.processLine._pipe = this.processLine.pipe;
+  this.processLine._unpipe = this.processLine.unpipe;
+
+  this.processLine.pipe = function(stream) {
+    ++self.processLine.nbOfPipes;
+    self.processLine._pipe(stream);
+  };
+
+  this.processLine.unpipe = function(stream) {
+    --self.processLine.nbOfPipes;
+    self.processLine._unpipe(stream);
+  };
+
   this.entryStream
   .pipe(iconv.decodeStream(encodingCorrespondences[options.encoding] || 'utf8'))
   .pipe(self.parser)
   .pipe(self.transformer)
   .pipe(self.processLine);
+
+  this.entryStream.getOutput = function(fn) {
+    if (fn) {
+      self.lineCb = fn;
+    }
+    return self.processLine;
+  };
+
+  return this.entryStream;
 }
-
-importCsv.prototype.setLineFn = function(fn) {
-  this.lineCb = fn;
-};
-
-importCsv.prototype.process = function(input) {
-  if (this.noMoreInput) {
-    return;
-  }
-  if (isReadableStream(input)) {
-    this.inputIsStream = true;
-    this.noMoreInput = true;
-    input.pipe(this.entryStream);
-  } else {
-    this.entryStream.write(input);
-  }
-};
-
-importCsv.prototype.end = function() {
-  this.noMoreInput = true;
-  if (!this.inputIsStream) {
-    this.entryStream.end();
-  }
-  this.processLine.pipe(fs.createWriteStream('/dev/null'));
-  return this.processLine;
-};
 
 importCsv.prototype.info = function(data, cb) {
   csv.parse(data,
@@ -243,6 +229,7 @@ importCsv.prototype.getPipes = function(options) {
   });
 
   pipes.processLine = through2.obj(function(chunk, enc, callback) {
+    var streamContext = this;
     var dataChunk = chunk;
     var parsedLine = {};
     asynk.each(self.columns, function(column, cb) {
@@ -260,13 +247,20 @@ importCsv.prototype.getPipes = function(options) {
       parsedLine[column.name] = data;
       cb();
     }).serie().done(function() {
+      var pipeCallback = function() {
+        callback();
+      };
+      if (streamContext.nbOfPipes) {
+        pipeCallback = function() {
+          callback(null, parsedLine);
+        };
+      }
       if (self.lineCb) {
         self.lineCb(parsedLine, function() {
-          callback(null, chunk.toString());
+          pipeCallback();
         });
       } else {
-        self.result.push(parsedLine);
-        callback(null, chunk.toString());
+        pipeCallback();
       }
     });
   });

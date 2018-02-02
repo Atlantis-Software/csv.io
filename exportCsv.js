@@ -16,10 +16,8 @@ function exportCsv(param) {
   this.rowDelimiter = param.rowDelimiter || "\n\r";
   this.delimiter = param.delimiter || ";";
   this.showHeaders = !!param.showHeaders;
-  this.headersSent = false;
   this.displayEmptyValue = param.displayEmptyValue || "";
   this.columns = param.columns || [];
-  this.result = '';
 
   if (this.columns.length === 0) {
     throw new Error('no column defined');
@@ -95,11 +93,11 @@ function exportCsv(param) {
   headers += this.rowDelimiter;
   // write headers
   if (this.showHeaders) {
-    this.result += headers;
     this.headers = headersObject;
   }
 
   this.processLine = through2.obj(function(chunk, enc, callback) {
+    var streamContext = this;
     var line = "";
     var index = 0;
     asynk.each(self.columns, function(column, cb) {
@@ -129,21 +127,42 @@ function exportCsv(param) {
       if (self.sendingHeader) {
         self.sendingHeader = false;
       }
+      var pipeCallback = function() {
+        callback();
+      };
+      if (streamContext.nbOfPipes) {
+        pipeCallback = function() {
+          callback(null, line);
+        };
+      }
       if (line !== "") {
         line += self.rowDelimiter;
         if (self.lineCb) {
           self.lineCb(line, function() {
-            callback(null, chunk.toString());
+            pipeCallback();
           });
         } else {
-          self.result += (line);
-          callback(null, chunk.toString());
+          pipeCallback();
         }
       } else {
-        callback(null, chunk.toString());
+        pipeCallback();
       }
     });
   });
+
+  this.processLine.nbOfPipes = 0;
+  this.processLine._pipe = this.processLine.pipe;
+  this.processLine._unpipe = this.processLine.unpipe;
+
+  this.processLine.pipe = function(stream) {
+    ++self.processLine.nbOfPipes;
+    self.processLine._pipe(stream);
+  };
+
+  this.processLine.unpipe = function(stream) {
+    --self.processLine.nbOfPipes;
+    self.processLine._unpipe(stream);
+  };
 
   var entryProcess = function(chunk, enc, callback) {
     var dataChunk = chunk;
@@ -157,42 +176,56 @@ function exportCsv(param) {
 
   this.entryStream = through2.obj(entryProcess)
   .pipe(self.processLine);
-}
 
-exportCsv.prototype.setLineFn = function(fn) {
-  this.lineCb = fn;
-};
+  this.entryStream.getOutput = function(fn) {
+    if (fn) {
+      self.lineCb = fn;
+    }
+    return self.processLine;
+  };
 
-exportCsv.prototype.process = function(input) {
-  var self = this;
-  if (this.noMoreInput) {
-    return;
-  }
-  if (this.showHeaders && !this.headersSent && this.lineCb) {
-    this.headersSent = true;
+  if (this.showHeaders && this.headers) {
     this.sendingHeader = true;
     this.entryStream.write(this.headers);
   }
-  if (isReadableStream(input)) {
-    this.inputIsStream = true;
-    this.noMoreInput = true;
-    input.pipe(this.entryStream);
-  } else if (_.isArray(input)) {
-    input.forEach(function(line) {
-      self.entryStream.write(line);
-    });
-  } else {
-    this.entryStream.write(input);
-  }
-};
 
-exportCsv.prototype.end = function() {
-  this.noMoreInput = true;
-  if (!this.inputIsStream) {
-    this.entryStream.end();
-  }
-  this.processLine.pipe(fs.createWriteStream('/dev/null'));
-  return this.processLine;
-};
+  return this.entryStream;
+}
+
+// exportCsv.prototype.setLineFn = function(fn) {
+//   this.lineCb = fn;
+// };
+//
+// exportCsv.prototype.process = function(input) {
+//   var self = this;
+//   if (this.noMoreInput) {
+//     return;
+//   }
+//   if (this.showHeaders && !this.headersSent && this.lineCb) {
+//     this.headersSent = true;
+//     this.sendingHeader = true;
+//     this.entryStream.write(this.headers);
+//   }
+//   if (isReadableStream(input)) {
+//     this.inputIsStream = true;
+//     this.noMoreInput = true;
+//     input.pipe(this.entryStream);
+//   } else if (_.isArray(input)) {
+//     input.forEach(function(line) {
+//       self.entryStream.write(line);
+//     });
+//   } else {
+//     this.entryStream.write(input);
+//   }
+// };
+//
+// exportCsv.prototype.end = function() {
+//   this.noMoreInput = true;
+//   if (!this.inputIsStream) {
+//     this.entryStream.end();
+//   }
+//   this.processLine.pipe(fs.createWriteStream('/dev/null'));
+//   return this.processLine;
+// };
 
 module.exports = exportCsv;

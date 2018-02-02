@@ -16,14 +16,14 @@ fs.readdirSync(__dirname).filter(function(file) {
 });
 
 var runner = test.run(function(err) {
-    if (err) {
-        console.log('ERROR : ', err);
-        process.exit(1);
-    } else {
-        process.exit(0);
-    }
+  if (err) {
+    console.log('ERROR : ', err);
+    process.exit(1);
+  } else {
+    process.exit(0);
+  }
 });
 
 runner.on('fail', function(e) {
-    console.error(e.err);
+  console.error(e.err);
 });

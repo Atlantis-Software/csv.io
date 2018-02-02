@@ -1,13 +1,17 @@
 var path = require('path');
 var fs = require('fs');
 var assert = require('assert');
+var stream = require('stream');
+var util = require('util');
 
 describe('Import', function() {
   var ImportCsv = require(path.join(__dirname, '..', 'index.js')).importer;
-  var testData = fs.readFileSync(path.join(__dirname, 'test.csv'));
-  var bigTestData = fs.readFileSync(path.join(__dirname, 'fat.csv'));
-  var testDataStream = fs.createReadStream(path.join(__dirname, 'test.csv'));
-  var bigTestDataStream = fs.createReadStream(path.join(__dirname, 'fat.csv'));
+  var testDataPath = path.join(__dirname, 'test.csv');
+  var bigTestDataPath = path.join(__dirname, 'fat.csv');
+
+  var testData = fs.readFileSync(testDataPath);
+  var bigTestData = fs.readFileSync(bigTestDataPath);
+
   var options = {
     columns: [
       {name: 'column1', type: 'string'},
@@ -44,131 +48,236 @@ describe('Import', function() {
     column4: undefined,
     column5: true } ];
 
-  it('should return info containing size and number of lines when passed a buffer', function(done) {
-    var importCsv = new ImportCsv(options);
-
-    importCsv.info(testData, function(err, info) {
-      assert(!err);
-      assert(info);
-      assert(info.entriesCount, 5, 'Should have found 5 lines');
-      assert(info.dataSize, 5, 'File should weight 458 bytes');
-      done();
-    });
-  });
-
+  // it('should return info containing size and number of lines when passed a buffer', function(done) {
+  //   var importCsv = new ImportCsv(options);
+  //
+  //   importCsv.info(testData, function(err, info) {
+  //     assert(!err);
+  //     assert(info);
+  //     assert(info.entriesCount, 5, 'Should have found 5 lines');
+  //     assert(info.dataSize, 5, 'File should weight 458 bytes');
+  //     done();
+  //   });
+  // });
+  //
   it('should parse csv buffer line by line into json object', function(done) {
     var importCsv = new ImportCsv(options);
     var i = 0;
 
-    importCsv.setLineFn(function(line, cb) {
+    var output = importCsv.getOutput(function(line, cb) {
       assert.deepEqual(line, expectedResult[i++], 'Returned json object line should be correct');
       return cb();
     });
 
-    importCsv.process(testData);
-    importCsv.end()
+    importCsv.write(testData);
+
+    output
     .on('error', function(err) {
       assert(false, 'should not pass here');
     })
     .on('finish', function() {
+      assert.equal(i, 5, 'should have parsed all lines');
       done();
     });
+    output.end();
   });
 
-  it('should accept multiple non-stream inputs', function(done) {
+  it('should accept multiple write operations and fragmented input', function(done) {
     var importCsv = new ImportCsv(options);
     var i = 0;
 
-    importCsv.setLineFn(function(line, cb) {
+    var output = importCsv.getOutput(function(line, cb) {
       assert.deepEqual(line, expectedResult[i++], 'Returned json object line should be correct');
       return cb();
     });
 
     var subDataSet1 = testData.slice(0, 100);
     var subDataSet2 = testData.slice(100, testData.length);
-    importCsv.process(subDataSet1);
-    importCsv.process(subDataSet2);
-    importCsv.end()
+
+    importCsv.write(subDataSet1);
+    importCsv.write(subDataSet2);
+
+    output
     .on('error', function(err) {
       assert(false, 'should not pass here');
     })
     .on('finish', function() {
+      assert.equal(i, 5, 'should have parsed all lines');
       done();
     });
+    output.end();
   });
 
-  it('should parse csv stream line by line into json object', function(done) {
+  it('input should be pipable', function(done) {
     var importCsv = new ImportCsv(options);
     var i = 0;
+    var testDataStream = fs.createReadStream(testDataPath);
 
-    importCsv.setLineFn(function(line, cb) {
+    var output = importCsv.getOutput(function(line, cb) {
       assert.deepEqual(line, expectedResult[i++], 'Returned json object line should be correct');
       return cb();
     });
 
-    importCsv.process(testDataStream);
-    importCsv.end()
+    testDataStream.pipe(importCsv);
+
+    output
     .on('error', function(err) {
       assert(false, 'should not pass here');
     })
     .on('finish', function() {
+      assert.equal(i, 5, 'should have parsed all lines');
       done();
     });
   });
 
-  it('should accept only a single input in stream mode', function(done) {
+  it('output should be pipable', function(done) {
     var importCsv = new ImportCsv(options);
     var i = 0;
+    var testDataStream = fs.createReadStream(testDataPath);
+    var sinkStream = new stream.Writable({objectMode: true});
+    sinkStream._write = function (chunk, encoding, next) {
+      assert.deepEqual(chunk, expectedResult[i++], 'Returned json object line should be correct');
+      next();
+    };
 
-    importCsv.setLineFn(function(line, cb) {
-      assert.deepEqual(line, expectedResult[i++], 'Returned json object line should be correct');
-      return cb();
-    });
+    var output = importCsv.getOutput();
 
-    importCsv.process(testDataStream);
-    importCsv.process(testDataStream);
-    importCsv.process(testData);
-    importCsv.end()
+    testDataStream.pipe(importCsv);
+    output.pipe(sinkStream);
+
+    sinkStream
     .on('error', function(err) {
       assert(false, 'should not pass here');
     })
     .on('finish', function() {
+      assert.equal(i, 5, 'should have parsed all lines');
       done();
     });
   });
 
-  it('should work with a stream even if the internal buffer get full', function(done) {
+  it('should work with streams even if the internal buffer get full', function(done) {
     var importCsv = new ImportCsv(options);
+    var i = 0;
+    var testDataStream = fs.createReadStream(bigTestDataPath);
+    var sinkStream = new stream.Writable({objectMode: true});
+    sinkStream._write = function (chunk, encoding, next) {
+      ++i;
+      next();
+    };
 
-    importCsv.setLineFn(function(line, cb) {
-      return cb();
-    });
+    var output = importCsv.getOutput();
 
-    importCsv.process(bigTestDataStream);
-    importCsv.end()
+    testDataStream.pipe(importCsv);
+    output.pipe(sinkStream);
+
+    sinkStream
     .on('error', function(err) {
       assert(false, 'should not pass here');
     })
     .on('finish', function() {
+      assert.equal(i, 200, 'should have parsed all lines');
       done();
     });
   });
 
   it('should work with a buffer even if the internal buffer get full', function(done) {
     var importCsv = new ImportCsv(options);
+    var i = 0;
 
-    importCsv.setLineFn(function(line, cb) {
+    var output = importCsv.getOutput(function(line, cb) {
+      ++i;
       return cb();
     });
 
-    importCsv.process(bigTestData);
-    importCsv.end()
+    importCsv.write(bigTestData);
+
+    output
     .on('error', function(err) {
       assert(false, 'should not pass here');
     })
     .on('finish', function() {
+      assert.equal(i, 200, 'should have parsed all lines');
       done();
     });
+    importCsv.end();
+  });
+
+  it('should handle backpressure', function(done) {
+    var importCsv = new ImportCsv(options);
+    var couldPush = true;
+    var testDataStream = fs.createReadStream(path.join(__dirname, 'realfat.csv'));
+    var i = 0;
+    var y = 0;
+    var testTransform1 = new stream.Transform({
+      transform(chunk, encoding, callback) {
+        var dataChunk = chunk;
+        var ok = true;
+        while (dataChunk.length > 1000) {
+          ok = this.push(dataChunk.slice(0, 1000));
+          if (!ok) {
+            couldPush = false;
+          }
+          ++i;
+          dataChunk = dataChunk.slice(1000, dataChunk.length);
+        }
+        ++i;
+        ok = this.push(dataChunk);
+        if (!ok) {
+          couldPush = false;
+        }
+        callback();
+      }
+    });
+
+    var testTransform2 = new stream.Transform({
+      transform(chunk, encoding, callback) {
+        var dataChunk = chunk;
+        var ok = true;
+        while (dataChunk.length > 1000) {
+          ok = this.push(dataChunk.slice(0, 1000));
+          if (!ok) {
+            couldPush = false;
+          }
+          ++y;
+          dataChunk = dataChunk.slice(1000, dataChunk.length);
+        }
+        ++y;
+        ok = this.push(dataChunk);
+        if (!ok) {
+          couldPush = false;
+        }
+        callback();
+      }
+    });
+
+
+    var sinkStream = new stream.Writable({objectMode: true});
+    sinkStream._write = function (chunk, encoding, next) {
+      // do nothing
+    };
+
+    var output = importCsv.getOutput();
+
+    testDataStream.pipe(testTransform1);
+    testTransform1.pipe(testTransform2);
+    testTransform2.pipe(importCsv);
+    output.pipe(sinkStream);
+
+
+    sinkStream
+    .on('error', function(err) {
+      assert(false, 'should not pass here');
+    })
+    .on('finish', function() {
+      assert(false, 'should not pass here');
+    });
+
+
+    setTimeout(function() {
+      assert(!couldPush, 'back pressure was not handled');
+      assert(i > y, 'Previous stream should process more write call');
+      done();
+    }, 1000);
   });
 
 });

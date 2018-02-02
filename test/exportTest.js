@@ -1,6 +1,7 @@
 var path = require('path');
 var _ = require('lodash');
 var assert = require('assert');
+var stream = require('stream');
 
 describe('Export', function() {
   var ExportCsv = require(path.join(__dirname, '..', 'index.js')).exporter;
@@ -67,68 +68,131 @@ describe('Export', function() {
 
   it('should transform json object into csv', function(done) {
     var exportCsv = new ExportCsv(options);
-
-    data.forEach(function(line) {
-      exportCsv.process(line);
-    });
-
-    exportCsv.end()
-    .on('error', function(err) {
-      assert(false, 'should not pass here');
-    })
-    .on('finish', function() {
-      assert.equal(exportCsv.result, expectedResult);
-      done();
-    });
-  });
-
-  it('should transform json object line by line into csv', function(done) {
-    var exportCsv = new ExportCsv(options);
     var i = 0;
 
-    exportCsv.setLineFn(function(line, cb) {
+    var output = exportCsv.getOutput(function(line, cb) {
       assert.equal(line, expectedResultLines[i++], 'Returned csv string line should be correct');
       cb();
     });
 
     data.forEach(function(line) {
-      exportCsv.process(line);
+      exportCsv.write(line);
     });
 
-    exportCsv.end()
+    output
     .on('error', function(err) {
       assert(false, 'should not pass here');
     })
     .on('finish', function() {
+      assert.equal(i, 5, 'Should have parsed all lines');
       done();
     });
+    exportCsv.end();
   });
 
-  it('should transform json object into csv with headers', function(done) {
-    options.showHeaders = true;
-    var exportCsv = new ExportCsv(options);
-
-    data.forEach(function(line) {
-      exportCsv.process(line);
-    });
-
-    exportCsv.end()
-    .on('error', function(err) {
-      assert(false, 'should not pass here');
-    })
-    .on('finish', function() {
-      assert.equal(exportCsv.result, 'id;someString;someDate;someNumber;someBoolean\n' + expectedResult);
-      done();
-    });
-  });
-
-  it('should transform json object line by line into csv with headers', function(done) {
-    options.showHeaders = true;
+  it('input should be pipable', function(done) {
     var exportCsv = new ExportCsv(options);
     var i = 0;
-    var firstLine = true;
+    var inputStream = new stream.PassThrough({objectMode: true});
 
-    exportCsv.setLineFn(function(line, cb) {
+    var output = exportCsv.getOutput(function(line, cb) {
+      assert.equal(line, expectedResultLines[i++], 'Returned csv string line should be correct');
+      cb();
+    });
+
+    inputStream.pipe(exportCsv);
+
+    data.forEach(function(line) {
+      inputStream.write(line);
+    });
+
+    output
+    .on('error', function(err) {
+      assert(false, 'should not pass here');
+    })
+    .on('finish', function() {
+      assert.equal(i, 5, 'Should have parsed all lines');
+      done();
+    });
+    inputStream.end();
+  });
+
+  it('output should be pipable', function(done) {
+    var exportCsv = new ExportCsv(options);
+    var i = 0;
+    var inputStream = new stream.PassThrough({objectMode: true});
+    var sinkStream = new stream.Writable({objectMode: true});
+
+    sinkStream._write = function (chunk, encoding, next) {
+      assert.equal(chunk, expectedResultLines[i++], 'Returned csv line should be correct');
+      next();
+    };
+
+    var output = exportCsv.getOutput();
+
+    inputStream.pipe(exportCsv);
+    output.pipe(sinkStream);
+
+    data.forEach(function(line) {
+      inputStream.write(line);
+    });
+
+    sinkStream
+    .on('error', function(err) {
+      assert(false, 'should not pass here');
+    })
+    .on('finish', function() {
+      assert.equal(i, 5, 'Should have parsed all lines');
+      done();
+    });
+    inputStream.end();
+  });
+
+  it('(streams as i/o) with showHeaders = true, first line should be the columns names', function(done) {
+    options.showHeaders = true;
+    var firstLine = true;
+    var exportCsv = new ExportCsv(options);
+    var i = 0;
+    var inputStream = new stream.PassThrough({objectMode: true});
+    var sinkStream = new stream.Writable({objectMode: true});
+
+    sinkStream._write = function (chunk, encoding, next) {
+      if (firstLine) {
+        firstLine = false;
+        assert.equal(chunk, 'id;someString;someDate;someNumber;someBoolean\n', 'First line should have headers');
+      } else {
+        assert.equal(chunk, expectedResultLines[i++], 'Returned csv string line should be correct');
+      }
+      next();
+    };
+
+    var output = exportCsv.getOutput();
+
+    inputStream.pipe(exportCsv);
+    output.pipe(sinkStream);
+
+    data.forEach(function(line) {
+      inputStream.write(line);
+    });
+
+    sinkStream
+    .on('error', function(err) {
+      assert(false, 'should not pass here');
+    })
+    .on('finish', function() {
+      assert.equal(i, 5, 'Should have parsed all lines');
+      done();
+    });
+    inputStream.end();
+  });
+
+  it('(objects as input) with showHeaders = true, first line should be the columns names', function(done) {
+    options.showHeaders = true;
+    var firstLine = true;
+    var exportCsv = new ExportCsv(options);
+    var i = 0;
+
+    var output = exportCsv.getOutput(function(line, cb) {
       if (firstLine) {
         firstLine = false;
         assert.equal(line, 'id;someString;someDate;someNumber;someBoolean\n', 'First line should have headers');
@@ -139,70 +203,185 @@ describe('Export', function() {
     });
 
     data.forEach(function(line) {
-      exportCsv.process(line);
+      exportCsv.write(line);
     });
 
-    exportCsv.end()
+    output
     .on('error', function(err) {
       assert(false, 'should not pass here');
     })
     .on('finish', function() {
+      assert.equal(i, 5, 'Should have parsed all lines');
       done();
     });
+    exportCsv.end();
   });
 
-  it('should work with a stream even if the internal buffer get full', function(done) {
+  it('should work with streams even if the internal buffer get full', function(done) {
     options.showHeaders = false;
     var exportCsv = new ExportCsv(options);
     var i = 0;
+    var y = -1;
+    var inputStream = new stream.PassThrough({objectMode: true});
+    var sinkStream = new stream.Writable({objectMode: true});
 
-    exportCsv.setLineFn(function(line, cb) {
-      cb();
-    });
+    sinkStream._write = function (chunk, encoding, next) {
+      ++i
+      if (++y > 4) {
+        y = 0;
+      }
+      assert.equal(chunk, expectedResultLines[y], 'Returned csv line should be correct');
+      next();
+    };
 
-    var fatData = [];
-    for (var y = 0; y < 50; ++y) {
-      fatData.push(data);
+    var output = exportCsv.getOutput();
+
+    inputStream.pipe(exportCsv);
+    output.pipe(sinkStream);
+
+    var bigData = [];
+    for (var z = 0; z < 40; ++z) {
+      bigData.push(data);
     }
-    fatData = _.flattenDeep(fatData);
+    bigData = _.flattenDeep(bigData);
 
-    fatData.forEach(function(line) {
-      exportCsv.process(line);
+    bigData.forEach(function(line) {
+      inputStream.write(line);
     });
 
-    exportCsv.end()
+    sinkStream
     .on('error', function(err) {
       assert(false, 'should not pass here');
     })
     .on('finish', function() {
+      assert.equal(i, 200, 'Should have parsed all lines');
       done();
     });
+    inputStream.end();
   });
 
-  it('should work with a stream even if the internal buffer get full', function(done) {
+  it('should work with objects even if the internal buffer get full', function(done) {
     options.showHeaders = false;
     var exportCsv = new ExportCsv(options);
+    var i = 0;
+    var y = -1;
 
-    exportCsv.setLineFn(function(line, cb) {
+    var output = exportCsv.getOutput(function(line, cb) {
+      ++i
+      if (++y > 4) {
+        y = 0;
+      }
+      assert.equal(line, expectedResultLines[y], 'Returned csv line should be correct');
       cb();
     });
 
-    var fatData = [];
-    for (var y = 0; y < 50; ++y) {
-      fatData.push(data);
+    var bigData = [];
+    for (var z = 0; z < 40; ++z) {
+      bigData.push(data);
     }
-    fatData = _.flattenDeep(fatData);
+    bigData = _.flattenDeep(bigData);
 
-    fatData.forEach(function(line) {
-      exportCsv.process(line);
+    bigData.forEach(function(line) {
+      exportCsv.write(line);
     });
 
-    exportCsv.end()
+    output
     .on('error', function(err) {
       assert(false, 'should not pass here');
     })
     .on('finish', function() {
+      assert.equal(i, 200, 'Should have parsed all lines');
       done();
     });
+    exportCsv.end();
+  });
+
+  it('should handle backpressure', function(done) {
+    options.showHeaders = false;
+    var exportCsv = new ExportCsv(options);
+    var couldPush = true;
+    var i = 0;
+    var y = 0;
+    var inputStream = new stream.PassThrough({objectMode: true});
+    var sinkStream = new stream.Writable({objectMode: true});
+
+    var testTransform1 = new stream.Transform({
+      objectMode: true,
+      transform(chunk, encoding, callback) {
+        var dataChunk = chunk;
+        var ok = true;
+        while (dataChunk.length > 1000) {
+          ok = this.push(dataChunk.slice(0, 1000));
+          if (!ok) {
+            couldPush = false;
+          }
+          ++i;
+          dataChunk = dataChunk.slice(1000, dataChunk.length);
+        }
+        ++i;
+        ok = this.push(dataChunk);
+        if (!ok) {
+          couldPush = false;
+        }
+        callback();
+      }
+    });
+
+    var testTransform2 = new stream.Transform({
+      objectMode: true,
+      transform(chunk, encoding, callback) {
+        var dataChunk = chunk;
+        var ok = true;
+        while (dataChunk.length > 1000) {
+          ok = this.push(dataChunk.slice(0, 1000));
+          if (!ok) {
+            couldPush = false;
+          }
+          ++y;
+          dataChunk = dataChunk.slice(1000, dataChunk.length);
+        }
+        ++y;
+        ok = this.push(dataChunk);
+        if (!ok) {
+          couldPush = false;
+        }
+        callback();
+      }
+    });
+
+    sinkStream._write = function (chunk, encoding, next) {
+      // do nothing
+    };
+
+    var output = exportCsv.getOutput();
+
+    inputStream.pipe(testTransform1);
+    testTransform1.pipe(testTransform2);
+    testTransform2.pipe(exportCsv);
+    output.pipe(sinkStream);
+
+    var bigData = [];
+    for (var z = 0; z < 100; ++z) {
+      bigData.push(data);
+    }
+    bigData = _.flattenDeep(bigData);
+
+    bigData.forEach(function(line) {
+      inputStream.write(line);
+    });
+
+    sinkStream
+    .on('error', function(err) {
+      assert(false, 'should not pass here');
+    })
+    .on('finish', function() {
+      assert(false, 'should not pass here');
+    });
+    inputStream.end();
+    setTimeout(function() {
+      assert(!couldPush, 'back pressure was not handled');
+      assert(i > y, 'Previous stream should process more write call');
+      done();
+    }, 1000)
   });
 });
