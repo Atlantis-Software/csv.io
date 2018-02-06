@@ -48,18 +48,18 @@ describe('Import', function() {
     column4: undefined,
     column5: true } ];
 
-  // it('should return info containing size and number of lines when passed a buffer', function(done) {
-  //   var importCsv = new ImportCsv(options);
-  //
-  //   importCsv.info(testData, function(err, info) {
-  //     assert(!err);
-  //     assert(info);
-  //     assert(info.entriesCount, 5, 'Should have found 5 lines');
-  //     assert(info.dataSize, 5, 'File should weight 458 bytes');
-  //     done();
-  //   });
-  // });
-  //
+  it('should return info containing size and number of lines when passed a buffer', function(done) {
+    var importCsv = new ImportCsv(options);
+
+    importCsv.getInfo(testData, function(err, info) {
+      assert(!err);
+      assert(info);
+      assert(info.entriesCount, 5, 'Should have found 5 lines');
+      assert(info.dataSize, 458, 'File should weight 458 bytes');
+      done();
+    });
+  });
+
   it('should parse csv buffer line by line into json object', function(done) {
     var importCsv = new ImportCsv(options);
     var i = 0;
@@ -278,6 +278,56 @@ describe('Import', function() {
       assert(i > y, 'Previous stream should process more write call');
       done();
     }, 1000);
+  });
+
+  it('should use custom formatter', function(done) {
+    var options2 = {
+      columns: [
+        {name: 'column1', type: 'string'},
+        {name: 'column2', type: 'number'},
+        {name: 'column3', type: 'customType'},
+        {name: 'column4', formatter: function(col, val) {
+          return 'custom format string';
+        }}
+      ],
+      formatters: {
+        number: function(col, val) {
+          return val * 2;
+        },
+        customType: function(col, val) {
+          return 'test ' + val;
+        }
+      }
+    };
+
+    var importCsv = new ImportCsv(options2);
+    var i = 0;
+
+    var data = Buffer.from('someString;10;someCustomString;50\n');
+
+    var output = importCsv.getOutput(function(line, cb) {
+      ++i;
+      var shouldBe = {
+        column1: 'someString',
+        column2: 20,
+        column3: 'test someCustomString',
+        column4: 'custom format string',
+      };
+      assert.deepEqual(line, shouldBe, 'Returned json object line should be correct');
+      return cb();
+    });
+
+    importCsv.write(data);
+
+    output
+    .on('error', function(err) {
+      assert(false, 'should not pass here');
+    })
+    .on('finish', function() {
+      assert.equal(i, 1, 'should have parsed all lines');
+      done();
+    });
+    output.end();
   });
 
 });

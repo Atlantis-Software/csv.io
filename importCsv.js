@@ -70,6 +70,12 @@ function importCsv(options) {
     self.columnNames.push(col.name);
   });
 
+  if (options.formatters) {
+    Object.keys(options.formatters).forEach(function(formName) {
+      self.formatters[formName] = options.formatters[formName];
+    });
+  }
+
   var pipes = this.getPipes(options);
   this.parser = pipes.parser;
   this.transformer = pipes.transformer;
@@ -117,50 +123,50 @@ function importCsv(options) {
     return self.processLine;
   };
 
+  this.entryStream.getInfo = function(data, cb) {
+    csv.parse(data,
+      {
+        columns: self.columnNames || null,
+        delimiter: self.options.delimiter || ';',
+        skip_empty_lines: true,
+        relax: true,
+        relax_column_count: true,
+        rowDelimiter: self.options.rowDelimiter || '\n',
+        from: self.options.from || 1
+      }, function(err, result) {
+        var bytes = 0;
+        var sizeOf = function (obj) {
+          if (obj !== null && obj !== undefined) {
+            switch (typeof obj) {
+              case 'number':
+                bytes += 8;
+                break;
+              case 'string':
+                bytes += obj.length * 2;
+                break;
+              case 'boolean':
+                bytes += 4;
+                break;
+              case 'object':
+                if (_.isObject(obj)) {
+                  for (var key in obj) {
+                    if (!obj.hasOwnProperty(key)) continue;
+                    sizeOf(obj[key]);
+                  }
+                } else {
+                  bytes += obj.toString().length * 2;
+                }
+                break;
+            }
+          }
+          return bytes;
+        };
+        cb(err, {entriesCount: result.length, dataSize: sizeOf(result)});
+      });
+  };
+
   return this.entryStream;
 }
-
-importCsv.prototype.info = function(data, cb) {
-  csv.parse(data,
-    {
-      columns: this.columnNames || null,
-      delimiter: this.options.delimiter || ';',
-      skip_empty_lines: true,
-      relax: true,
-      relax_column_count: true,
-      rowDelimiter: this.options.rowDelimiter || '\n',
-      from: this.options.from || 1
-    }, function(err, result) {
-      var bytes = 0;
-      var sizeOf = function (obj) {
-        if (obj !== null && obj !== undefined) {
-          switch (typeof obj) {
-            case 'number':
-              bytes += 8;
-              break;
-            case 'string':
-              bytes += obj.length * 2;
-              break;
-            case 'boolean':
-              bytes += 4;
-              break;
-            case 'object':
-              if (_.isObject(obj)) {
-                for (var key in obj) {
-                  if (!obj.hasOwnProperty(key)) continue;
-                  sizeOf(obj[key]);
-                }
-              } else {
-                bytes += obj.toString().length * 2;
-              }
-              break;
-          }
-        }
-        return bytes;
-      };
-      cb(err, {entriesCount: result.length, dataSize: sizeOf(result)});
-    });
-};
 
 importCsv.prototype.getPipes = function(options) {
   var self = this;

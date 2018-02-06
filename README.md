@@ -35,11 +35,14 @@ var options = {
     { name: 'column4', type: 'boolean' },
     { name: 'column5', type: 'date' },
     { name: 'column6', type: 'doNothing' },
-    { name: 'column7', formatter: myCustomFormatter }
+    { name: 'column7', formatter: myCustomFormatter } // this custom formatter is specific to this column
   ],
   encoding: 'windows-1252', // can also be 'ascii', and default to utf-8
   delimiter: '|', // default to ';',
-  rowDelimiter: '\r\n' // default to '\n'
+  rowDelimiter: '\r\n', // default to '\n'
+  formatters: {
+    date: anotherCustomFormatter  // replace the date formatter with a custom one
+  }
 };
 ```
 The only option really required is `columns`, wich is an array of objects with a `name`, and either a `type` (that is basically a standard formatter for `string`, `number`, `boolean`, or `date`. `doNothing` is a special formatter that just return the data without formatting it) or a `formatter` property where you can inject your own formatter.
@@ -107,6 +110,13 @@ anotherStream // since earlier we piped output to anotherStream, we listen to th
 });
 ```
 
+If you didn't pipe a stream as input and only used `write`, once you have written everything you wanted, you must signal
+that there is no more input with the `end` function :
+
+```javascript
+importCsv.end();
+```
+
 ### Exporter
 The exporter is really similar in usage to the importer, but its options are slightly differents :
 
@@ -119,12 +129,15 @@ var options = {
     { name: 'column4', type: 'boolean' },
     { name: 'column5', type: 'date' },
     { name: 'column6', type: 'doNothing' },
-    { name: 'column7', formatter: myCustomFormatter }
+    { name: 'column7', formatter: myCustomFormatter } // this custom formatter is specific to this column
   ],
   delimiter: '|', // default to ';',
   rowDelimiter: '\r\n', // default to '\n'
   showHeaders: true, // First line returned will be the columns names, default to false
-  displayEmptyValue: 'EMPTY' // Value displayed when a field is empty, default to empty string
+  displayEmptyValue: 'EMPTY', // Value displayed when a field is empty, default to empty string
+  formatters: {
+    date: anotherCustomFormatter  // replace the date formatter with a custom one
+  }
 };
 ```
 
