@@ -384,4 +384,55 @@ describe('Export', function() {
       done();
     }, 1000)
   });
+
+  it('should use custom formatter', function(done) {
+    var options2 = {
+      columns: [
+        {name: 'column1', type: 'string'},
+        {name: 'column2', type: 'number'},
+        {name: 'column3', type: 'customType'},
+        {name: 'column4', formatter: function(col, val) {
+          return 'custom format string';
+        }}
+      ],
+      formatters: {
+        number: function(col, val) {
+          return val * 2;
+        },
+        customType: function(col, val) {
+          return '"test ' + val + '"';
+        }
+      },
+      rowDelimiter: '\n'
+    };
+
+    var exportCsv = new ExportCsv(options2);
+    var i = 0;
+
+    var data = {
+      column1: 'someString',
+      column2: 10,
+      column3: 'someCustomString',
+      column4: 50,
+    };
+
+    var output = exportCsv.getOutput(function(line, cb) {
+      ++i;
+      var shouldBe = '"someString";20;"test someCustomString";custom format string\n';
+      assert.equal(line, shouldBe, 'Returned csv string line should be correct');
+      cb();
+    });
+
+    exportCsv.write(data);
+
+    output
+    .on('error', function(err) {
+      assert(false, 'should not pass here');
+    })
+    .on('finish', function() {
+      assert.equal(i, 1, 'Should have parsed all lines');
+      done();
+    });
+    exportCsv.end();
+  });
 });

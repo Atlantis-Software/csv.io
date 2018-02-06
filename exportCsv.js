@@ -1,14 +1,6 @@
 var _ = require('lodash');
 var through2 = require('through2');
 var asynk = require('asynk');
-var stream = require('stream');
-var fs = require('fs');
-
-function isReadableStream(obj) {
-  return obj instanceof stream.Stream &&
-    typeof (obj._read === 'function') &&
-    typeof (obj._readableState === 'object');
-}
 
 function exportCsv(param) {
   var self = this;
@@ -22,54 +14,57 @@ function exportCsv(param) {
   if (this.columns.length === 0) {
     throw new Error('no column defined');
   }
-  this.formatters = param.formatters || {};
 
-  this.formatters.string = this.formatters.string || function(column, val) {
-    if (_.isNull(val) && column.nullable) {
-      return 'null';
+  this.formatters = {
+    string: function(column, val) {
+      if (_.isNull(val) && column.nullable) {
+        return 'null';
+      }
+      if (_.isUndefined(val) || _.isNull(val) || (_.isString(val) && !val.length)) {
+        return self.displayEmptyValue;
+      }
+      return '"' + val + '"';
+    },
+    date: function(column, val) {
+      if (_.isNull(val) && column.nullable) {
+        return 'null';
+      }
+      if (_.isUndefined(val) || _.isNull(val) || (_.isString(val) && !val.length)) {
+        return self.displayEmptyValue;
+      }
+      return val.toString();
+    },
+    number: function(column, val) {
+      if (_.isNull(val) && column.nullable) {
+        return 'null';
+      }
+      if (_.isUndefined(val) || _.isNull(val) || (_.isString(val) && !val.length)) {
+        return self.displayEmptyValue;
+      }
+      return val;
+    },
+    boolean: function(column, val) {
+      if (_.isNull(val) && column.nullable) {
+        return 'null';
+      }
+      if (_.isUndefined(val) || _.isNull(val) || (_.isString(val) && !val.length)) {
+        return self.displayEmptyValue;
+      }
+      if (val) {
+        return "1";
+      }
+      return "0";
+    },
+    doNothing: function(column, val) {
+      return val;
     }
-    if (_.isUndefined(val) || _.isNull(val) || (_.isString(val) && !val.length)) {
-      return self.displayEmptyValue;
-    }
-    return '"' + val + '"';
   };
 
-  this.formatters.date = this.formatters.date || function(column, val) {
-    if (_.isNull(val) && column.nullable) {
-      return 'null';
-    }
-    if (_.isUndefined(val) || _.isNull(val) || (_.isString(val) && !val.length)) {
-      return self.displayEmptyValue;
-    }
-    return val.toString();
-  };
-
-  this.formatters.number = this.formatters.number || function(column, val) {
-    if (_.isNull(val) && column.nullable) {
-      return 'null';
-    }
-    if (_.isUndefined(val) || _.isNull(val) || (_.isString(val) && !val.length)) {
-      return self.displayEmptyValue;
-    }
-    return val;
-  };
-
-  this.formatters.boolean = this.formatters.boolean || function(column, val) {
-    if (_.isNull(val) && column.nullable) {
-      return 'null';
-    }
-    if (_.isUndefined(val) || _.isNull(val) || (_.isString(val) && !val.length)) {
-      return self.displayEmptyValue;
-    }
-    if (val) {
-      return "1";
-    }
-    return "0";
-  };
-
-  this.formatters.doNothing = function(column, val) {
-    return val;
-  };
+  if (param.formatters) {
+    Object.keys(param.formatters).forEach(function(formName) {
+      self.formatters[formName] = param.formatters[formName];
+    });
+  }
 
   var headers = "";
   var headersObject = {};
@@ -81,8 +76,8 @@ function exportCsv(param) {
     if (!column.name) {
       throw new Error('A column has no name');
     }
-    if (!column.type) {
-      throw new Error('Column ' + column.name + ' has no type');
+    if (!column.type && !column.formatter) {
+      throw new Error('Column ' + column.name + ' has no type nor formatter');
     }
 
     column.header = column.header || column.name;
@@ -191,41 +186,5 @@ function exportCsv(param) {
 
   return this.entryStream;
 }
-
-// exportCsv.prototype.setLineFn = function(fn) {
-//   this.lineCb = fn;
-// };
-//
-// exportCsv.prototype.process = function(input) {
-//   var self = this;
-//   if (this.noMoreInput) {
-//     return;
-//   }
-//   if (this.showHeaders && !this.headersSent && this.lineCb) {
-//     this.headersSent = true;
-//     this.sendingHeader = true;
-//     this.entryStream.write(this.headers);
-//   }
-//   if (isReadableStream(input)) {
-//     this.inputIsStream = true;
-//     this.noMoreInput = true;
-//     input.pipe(this.entryStream);
-//   } else if (_.isArray(input)) {
-//     input.forEach(function(line) {
-//       self.entryStream.write(line);
-//     });
-//   } else {
-//     this.entryStream.write(input);
-//   }
-// };
-//
-// exportCsv.prototype.end = function() {
-//   this.noMoreInput = true;
-//   if (!this.inputIsStream) {
-//     this.entryStream.end();
-//   }
-//   this.processLine.pipe(fs.createWriteStream('/dev/null'));
-//   return this.processLine;
-// };
 
 module.exports = exportCsv;
