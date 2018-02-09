@@ -36,6 +36,9 @@ function importCsv(options) {
       if (_.isUndefined(val) || _.isNull(val) || val == 'null') {
         return void 0;
       }
+      if (!_.isDate(val)) {
+        return new Date(val);
+      }
       return val;
     },
     number: function(column, val) {
@@ -65,6 +68,30 @@ function importCsv(options) {
     }
   };
 
+  this.typeChecks = {
+    string: function(column, val) {
+      if (_.isUndefined(val) || _.isNull(val) || _.isString(val)) {
+        return val;
+      } else {
+        return new Error(val + ' is not a valid value for column ' + column.name + ' of type ' + column.type);
+      }
+    },
+    date: function(column, val) {
+      if (_.isUndefined(val) || _.isNull(val) || _.isDate(val)) {
+        return val;
+      } else {
+        return new Error(val + ' is not a valid value for column ' + column.name + ' of type ' + column.type);
+      }
+    },
+    number: function(column, val) {
+      if (_.isUndefined(val) || _.isNull(val) || _.isFinite(val)) {
+        return val;
+      } else {
+        return new Error(val + ' is not a valid value for column ' + column.name + ' of type ' + column.type);
+      }
+    }
+  };
+
   this.columnNames = [];
   options.columns.forEach(function(col) {
     self.columnNames.push(col.name);
@@ -73,6 +100,12 @@ function importCsv(options) {
   if (options.formatters) {
     Object.keys(options.formatters).forEach(function(formName) {
       self.formatters[formName] = options.formatters[formName];
+    });
+  }
+
+  if (options.typeChecks) {
+    Object.keys(options.typeChecks).forEach(function(typeName) {
+      self.typeChecks[typeName] = options.typeChecks[typeName];
     });
   }
 
@@ -248,8 +281,17 @@ importCsv.prototype.getPipes = function(options) {
       try {
         data = formatter(column, data);
       } catch (err) {
-        console.log('Formatting error : ', err);
+        data = err;
       }
+
+      var typeChecker = column.typeCheck || self.typeChecks[column.type];
+
+      if (_.isError(data)) {
+        data = new Error(dataChunk[column.name] + ' is not a valid value for column ' + column.name + ' of type ' + column.type);
+      } else if (typeChecker && _.isFunction(typeChecker)) {
+        data = typeChecker(column, data);
+      }
+
       parsedLine[column.name] = data;
       cb();
     }).serie().done(function() {
