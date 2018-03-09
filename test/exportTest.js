@@ -217,6 +217,43 @@ describe('Export', function() {
     exportCsv.end();
   });
 
+  it('with showHeaders = true and custom headers, first line should be the custom headers', function(done) {
+    options.showHeaders = true;
+    var firstLine = true;
+    var originalOptions = options.columns;
+    options.columns.forEach(function(col, index) {
+      col.header = 'customHeader' + index;
+    });
+    var exportCsv = new ExportCsv(options);
+    options.columns = originalOptions;
+    var i = 0;
+
+
+    var output = exportCsv.getOutput(function(line, cb) {
+      if (firstLine) {
+        firstLine = false;
+        assert.equal(line, 'customHeader0;customHeader1;customHeader2;customHeader3;customHeader4\n', 'First line should have headers');
+      } else {
+        assert.equal(line, expectedResultLines[i++], 'Returned csv string line should be correct');
+      }
+      cb();
+    });
+
+    data.forEach(function(line) {
+      exportCsv.write(line);
+    });
+
+    output
+    .on('error', function(err) {
+      assert(false, 'should not pass here');
+    })
+    .on('finish', function() {
+      assert.equal(i, 5, 'Should have parsed all lines');
+      done();
+    });
+    exportCsv.end();
+  });
+
   it('should work with streams even if the internal buffer get full', function(done) {
     options.showHeaders = false;
     var exportCsv = new ExportCsv(options);
