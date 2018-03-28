@@ -1,6 +1,6 @@
 {
   "name": "csv.io",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Csv import and export through streams with backpressure",
   "main": "index.js",
   "scripts": {

@@ -83,7 +83,7 @@ function exportCsv(param) {
     column.header = column.header || column.name;
 
     headers += column.header;
-    headersObject[column.header] = column.header;
+    headersObject[column.name] = column.header;
   });
   headers += this.rowDelimiter;
   // write headers
