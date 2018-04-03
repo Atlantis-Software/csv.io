@@ -69,25 +69,25 @@ function importCsv(options) {
   };
 
   this.typeChecks = {
-    string: function(column, val) {
+    string: function(column, val, originalVal) {
       if (_.isUndefined(val) || _.isNull(val) || _.isString(val)) {
         return val;
       } else {
-        return new Error(val + ' is not a valid value for column ' + column.name + ' of type ' + column.type);
+        return new Error(originalVal + ' is not a valid value for column ' + column.name + ' of type ' + column.type);
       }
     },
-    date: function(column, val) {
+    date: function(column, val, originalVal) {
       if (_.isUndefined(val) || _.isNull(val) || _.isDate(val)) {
         return val;
       } else {
-        return new Error(val + ' is not a valid value for column ' + column.name + ' of type ' + column.type);
+        return new Error(originalVal + ' is not a valid value for column ' + column.name + ' of type ' + column.type);
       }
     },
-    number: function(column, val) {
+    number: function(column, val, originalVal) {
       if (_.isUndefined(val) || _.isNull(val) || _.isFinite(val)) {
         return val;
       } else {
-        return new Error(val + ' is not a valid value for column ' + column.name + ' of type ' + column.type);
+        return new Error(originalVal + ' is not a valid value for column ' + column.name + ' of type ' + column.type);
       }
     }
   };
@@ -289,7 +289,11 @@ importCsv.prototype.getPipes = function(options) {
       if (_.isError(data)) {
         data = new Error(dataChunk[column.name] + ' is not a valid value for column ' + column.name + ' of type ' + column.type);
       } else if (typeChecker && _.isFunction(typeChecker)) {
-        data = typeChecker(column, data);
+        data = typeChecker(column, data, dataChunk[column.name]);
+      }
+
+      if (_.isError(data)) {
+        return cb(data);
       }
 
       parsedLine[column.name] = data;
@@ -310,6 +314,8 @@ importCsv.prototype.getPipes = function(options) {
       } else {
         pipeCallback();
       }
+    }).fail(function(err) {
+      streamContext.emit('error', err);
     });
   });
 

@@ -8,9 +8,11 @@ describe('Import', function() {
   var ImportCsv = require(path.join(__dirname, '..', 'index.js')).importer;
   var testDataPath = path.join(__dirname, 'test.csv');
   var bigTestDataPath = path.join(__dirname, 'fat.csv');
+  var invalidTestDataPath = path.join(__dirname, 'invalidData.csv');
 
   var testData = fs.readFileSync(testDataPath);
   var bigTestData = fs.readFileSync(bigTestDataPath);
+  var invalidTestData = fs.readFileSync(invalidTestDataPath);
 
   var options = {
     columns: [
@@ -328,6 +330,50 @@ describe('Import', function() {
       done();
     });
     output.end();
+  });
+
+  it('should parse csv buffer and emit an error on invalid data', function(done) {
+    var importCsv = new ImportCsv(options);
+    var i = 0;
+
+    var output = importCsv.getOutput(function(line, cb) {
+      assert.deepEqual(line, expectedResult[i++], 'Returned json object line should be correct');
+      return cb();
+    });
+
+    importCsv.write(invalidTestData);
+
+    output
+    .on('error', function(err) {
+      assert(err.message, 'bad data is not a valid value for column column3 of type number');
+      done();
+    })
+    .on('finish', function() {
+      assert(false, 'should not pass here');
+    });
+    output.end();
+  });
+
+  it('should parse csv stream and emit an error on invalid data', function(done) {
+    var importCsv = new ImportCsv(options);
+    var i = 0;
+    var invalidTestDataStream = fs.createReadStream(invalidTestDataPath);
+
+    var output = importCsv.getOutput(function(line, cb) {
+      assert.deepEqual(line, expectedResult[i++], 'Returned json object line should be correct');
+      return cb();
+    });
+
+    invalidTestDataStream.pipe(importCsv);
+
+    output
+    .on('error', function(err) {
+      assert(err.message, 'bad data is not a valid value for column column3 of type number');
+      done();
+    })
+    .on('finish', function() {
+      assert(false, 'should not pass here');
+    });
   });
 
 });
