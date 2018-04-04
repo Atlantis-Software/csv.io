@@ -1,4 +1,7 @@
 .git
 .gitignore
+.eslintrc
+.travis.yml
 node_modules
 package-lock.json
+test
