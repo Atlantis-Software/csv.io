@@ -10,10 +10,6 @@ describe('Import', function() {
   var bigTestDataPath = path.join(__dirname, 'fat.csv');
   var invalidTestDataPath = path.join(__dirname, 'invalidData.csv');
 
-  var testData = fs.readFileSync(testDataPath);
-  var bigTestData = fs.readFileSync(bigTestDataPath);
-  var invalidTestData = fs.readFileSync(invalidTestDataPath);
-
   var options = {
     columns: [
       {name: 'column1', type: 'string'},
@@ -52,6 +48,7 @@ describe('Import', function() {
 
   it('should return info containing size and number of lines when passed a buffer', function(done) {
     var importCsv = new ImportCsv(options);
+    var testData = fs.readFileSync(testDataPath);
 
     importCsv.getInfo(testData, function(err, info) {
       assert(!err);
@@ -64,6 +61,7 @@ describe('Import', function() {
 
   it('should parse csv buffer line by line into json object', function(done) {
     var importCsv = new ImportCsv(options);
+    var testData = fs.readFileSync(testDataPath);
     var i = 0;
 
     var output = importCsv.getOutput(function(line, cb) {
@@ -86,6 +84,7 @@ describe('Import', function() {
 
   it('should accept multiple write operations and fragmented input', function(done) {
     var importCsv = new ImportCsv(options);
+    var testData = fs.readFileSync(testDataPath);
     var i = 0;
 
     var output = importCsv.getOutput(function(line, cb) {
@@ -184,6 +183,7 @@ describe('Import', function() {
 
   it('should work with a buffer even if the internal buffer get full', function(done) {
     var importCsv = new ImportCsv(options);
+    var bigTestData = fs.readFileSync(bigTestDataPath);
     var i = 0;
 
     var output = importCsv.getOutput(function(line, cb) {
@@ -334,6 +334,7 @@ describe('Import', function() {
 
   it('should parse csv buffer and emit an error on invalid data', function(done) {
     var importCsv = new ImportCsv(options);
+    var invalidTestData = fs.readFileSync(invalidTestDataPath);
     var i = 0;
 
     var output = importCsv.getOutput(function(line, cb) {
