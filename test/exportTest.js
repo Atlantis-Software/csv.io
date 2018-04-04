@@ -40,17 +40,17 @@ describe('Export', function() {
     }
   ];
 
-  var expectedResultLines = [
-    '1;"blabla1";Sun Jan 01 1995 01:00:00 GMT+0100 (CET);123;1\n',
-    '2;"blabla2";Mon Jan 01 1996 01:00:00 GMT+0100 (CET);456;0\n',
-    '3;"blabla3";Wed Jan 01 1997 01:00:00 GMT+0100 (CET);789;1\n',
-    '4;;;null;\n',
-    '5;;;;\n'
-  ];
+var expectedResultLines = [
+  '1;"blabla1";' + data[0].someDate.toString() + ';123;1\n',
+  '2;"blabla2";' + data[1].someDate.toString() + ';456;0\n',
+  '3;"blabla3";' + data[2].someDate.toString() + ';789;1\n',
+  '4;;;null;\n',
+  '5;;;;\n'
+];
 
-  var expectedResult = `1;"blabla1";Sun Jan 01 1995 01:00:00 GMT+0100 (CET);123;1
-2;"blabla2";Mon Jan 01 1996 01:00:00 GMT+0100 (CET);456;0
-3;"blabla3";Wed Jan 01 1997 01:00:00 GMT+0100 (CET);789;1
+var expectedResult = `1;"blabla1";` + data[0].someDate.toString() + `;123;1
+2;"blabla2";` + data[1].someDate.toString() + `;456;0
+3;"blabla3";` + data[2].someDate.toString() + `;789;1
 4;;;null;
 5;;;;
 `;

@@ -81,7 +81,7 @@ describe('Import', function() {
       assert.equal(i, 5, 'should have parsed all lines');
       done();
     });
-    output.end();
+    importCsv.end();
   });
 
   it('should accept multiple write operations and fragmented input', function(done) {
@@ -107,7 +107,7 @@ describe('Import', function() {
       assert.equal(i, 5, 'should have parsed all lines');
       done();
     });
-    output.end();
+    importCsv.end();
   });
 
   it('input should be pipable', function(done) {
@@ -329,7 +329,7 @@ describe('Import', function() {
       assert.equal(i, 1, 'should have parsed all lines');
       done();
     });
-    output.end();
+    importCsv.end();
   });
 
   it('should parse csv buffer and emit an error on invalid data', function(done) {
@@ -351,7 +351,7 @@ describe('Import', function() {
     .on('finish', function() {
       assert(false, 'should not pass here');
     });
-    output.end();
+    importCsv.end();
   });
 
   it('should parse csv stream and emit an error on invalid data', function(done) {
