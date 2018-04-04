@@ -286,7 +286,7 @@ importCsv.prototype.getPipes = function(options) {
 
       var typeChecker = column.typeCheck || self.typeChecks[column.type];
 
-      if (_.isError(data)) {
+      if (_.isError(data) || data == 'Invalid Date') {
         data = new Error(dataChunk[column.name] + ' is not a valid value for column ' + column.name + ' of type ' + column.type);
       } else if (typeChecker && _.isFunction(typeChecker)) {
         data = typeChecker(column, data, dataChunk[column.name]);
