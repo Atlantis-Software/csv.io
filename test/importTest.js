@@ -345,7 +345,12 @@ describe('Import', function() {
 
     output
     .on('error', function(err) {
-      assert(err.message, 'bad data is not a valid value for column column3 of type number');
+      assert.deepEqual(err.message, 'bad data on row 3 is not a valid value for column column3 of type number');
+      assert.deepEqual(err.code, 'ERR_CSV_IO_INVALID_VALUE');
+      assert.deepEqual(err.meta.value, 'bad data');
+      assert.deepEqual(err.meta.columnName, 'column3');
+      assert.deepEqual(err.meta.columnType, 'number');
+      assert.deepEqual(err.meta.rowNum, 3);
       done();
     })
     .on('finish', function() {
@@ -368,7 +373,12 @@ describe('Import', function() {
 
     output
     .on('error', function(err) {
-      assert(err.message, 'bad data is not a valid value for column column3 of type number');
+      assert.deepEqual(err.message, 'bad data on row 3 is not a valid value for column column3 of type number');
+      assert.deepEqual(err.code, 'ERR_CSV_IO_INVALID_VALUE');
+      assert.deepEqual(err.meta.value, 'bad data');
+      assert.deepEqual(err.meta.columnName, 'column3');
+      assert.deepEqual(err.meta.columnType, 'number');
+      assert.deepEqual(err.meta.rowNum, 3);
       done();
     })
     .on('finish', function() {
