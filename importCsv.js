@@ -18,6 +18,7 @@ function importCsv(options) {
   this.result = [];
   this.options = options;
   this.columns = options.columns;
+  this.skipFirstLine = options.skipFirstLine;
   this.emptyValue = options.emptyValue || '';
   this.formatters = {
     string: function(column, val) {
@@ -267,8 +268,13 @@ importCsv.prototype.getPipes = function(options) {
     }
   });
 
-  var rowNum = 0;
+  var rowNum = null;
   pipes.processLine = through2.obj(function(chunk, enc, callback) {
+    if (self.skipFirstLine && _.isNull(rowNum)) {
+      rowNum = 0;
+      return callback();
+    }
+    rowNum = rowNum || 0;
     ++rowNum;
     var streamContext = this;
     var dataChunk = chunk;

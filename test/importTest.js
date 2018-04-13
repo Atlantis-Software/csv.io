@@ -2,13 +2,14 @@ var path = require('path');
 var fs = require('fs');
 var assert = require('assert');
 var stream = require('stream');
-var util = require('util');
+var _ = require('lodash');
 
 describe('Import', function() {
   var ImportCsv = require(path.join(__dirname, '..', 'index.js')).importer;
   var testDataPath = path.join(__dirname, 'test.csv');
   var bigTestDataPath = path.join(__dirname, 'fat.csv');
   var invalidTestDataPath = path.join(__dirname, 'invalidData.csv');
+  var skipFirstDataPath = path.join(__dirname, 'skipFirst.csv');
 
   var testData = fs.readFileSync(testDataPath);
   var bigTestData = fs.readFileSync(bigTestDataPath);
@@ -327,6 +328,31 @@ describe('Import', function() {
     })
     .on('finish', function() {
       assert.equal(i, 1, 'should have parsed all lines');
+      done();
+    });
+    importCsv.end();
+  });
+
+  it('should ignore the first line', function(done) {
+    var optionsSkipFirst = _.clone(options);
+    optionsSkipFirst.skipFirstLine = true;
+    var importCsv = new ImportCsv(optionsSkipFirst);
+    var i = 0;
+
+    var output = importCsv.getOutput(function(line, cb) {
+      assert.deepEqual(line, expectedResult[i++], 'Returned json object line should be correct');
+      return cb();
+    });
+
+    var dataSkipFirst = fs.readFileSync(skipFirstDataPath);
+    importCsv.write(dataSkipFirst);
+
+    output
+    .on('error', function(err) {
+      assert(false, 'should not pass here');
+    })
+    .on('finish', function() {
+      assert.equal(i, 5, 'should have parsed all lines');
       done();
     });
     importCsv.end();
