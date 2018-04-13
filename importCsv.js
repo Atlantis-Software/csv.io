@@ -18,6 +18,7 @@ function importCsv(options) {
   this.result = [];
   this.options = options;
   this.columns = options.columns;
+  this.skipFirstLine = options.skipFirstLine;
   this.emptyValue = options.emptyValue || '';
   this.formatters = {
     string: function(column, val) {
@@ -69,25 +70,25 @@ function importCsv(options) {
   };
 
   this.typeChecks = {
-    string: function(column, val, originalVal) {
+    string: function(column, val, originalVal, rowNum) {
       if (_.isUndefined(val) || _.isNull(val) || _.isString(val)) {
         return val;
       } else {
-        return new Error(originalVal + ' is not a valid value for column ' + column.name + ' of type ' + column.type);
+        return new Error(originalVal + ' on row ' + rowNum + ' is not a valid value for column ' + column.name + ' of type ' + column.type);
       }
     },
-    date: function(column, val, originalVal) {
+    date: function(column, val, originalVal, rowNum) {
       if (_.isUndefined(val) || _.isNull(val) || _.isDate(val)) {
         return val;
       } else {
-        return new Error(originalVal + ' is not a valid value for column ' + column.name + ' of type ' + column.type);
+        return new Error(originalVal + ' on row ' + rowNum + ' is not a valid value for column ' + column.name + ' of type ' + column.type);
       }
     },
-    number: function(column, val, originalVal) {
+    number: function(column, val, originalVal, rowNum) {
       if (_.isUndefined(val) || _.isNull(val) || _.isFinite(val)) {
         return val;
       } else {
-        return new Error(originalVal + ' is not a valid value for column ' + column.name + ' of type ' + column.type);
+        return new Error(originalVal + ' on row ' + rowNum + ' is not a valid value for column ' + column.name + ' of type ' + column.type);
       }
     }
   };
@@ -267,7 +268,14 @@ importCsv.prototype.getPipes = function(options) {
     }
   });
 
+  var rowNum = null;
   pipes.processLine = through2.obj(function(chunk, enc, callback) {
+    if (self.skipFirstLine && _.isNull(rowNum)) {
+      rowNum = 0;
+      return callback();
+    }
+    rowNum = rowNum || 0;
+    ++rowNum;
     var streamContext = this;
     var dataChunk = chunk;
     var parsedLine = {};
@@ -286,13 +294,20 @@ importCsv.prototype.getPipes = function(options) {
 
       var typeChecker = column.typeCheck || self.typeChecks[column.type];
 
-      if (_.isError(data)) {
-        data = new Error(dataChunk[column.name] + ' is not a valid value for column ' + column.name + ' of type ' + column.type);
+      if (_.isError(data) || data == 'Invalid Date') {
+        data = new Error(dataChunk[column.name] + ' on row ' + rowNum + ' is not a valid value for column ' + column.name + ' of type ' + column.type);
       } else if (typeChecker && _.isFunction(typeChecker)) {
-        data = typeChecker(column, data, dataChunk[column.name]);
+        data = typeChecker(column, data, dataChunk[column.name], rowNum);
       }
 
       if (_.isError(data)) {
+        data.code = 'ERR_CSV_IO_INVALID_VALUE';
+        data.meta = {
+          value: dataChunk[column.name],
+          columnName: column.name,
+          columnType: column.type,
+          rowNum: rowNum
+        };
         return cb(data);
       }
 

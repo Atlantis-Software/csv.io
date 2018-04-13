@@ -2,13 +2,14 @@ var path = require('path');
 var fs = require('fs');
 var assert = require('assert');
 var stream = require('stream');
-var util = require('util');
+var _ = require('lodash');
 
 describe('Import', function() {
   var ImportCsv = require(path.join(__dirname, '..', 'index.js')).importer;
   var testDataPath = path.join(__dirname, 'test.csv');
   var bigTestDataPath = path.join(__dirname, 'fat.csv');
   var invalidTestDataPath = path.join(__dirname, 'invalidData.csv');
+  var skipFirstDataPath = path.join(__dirname, 'skipFirst.csv');
 
   var testData = fs.readFileSync(testDataPath);
   var bigTestData = fs.readFileSync(bigTestDataPath);
@@ -332,6 +333,31 @@ describe('Import', function() {
     importCsv.end();
   });
 
+  it('should ignore the first line', function(done) {
+    var optionsSkipFirst = _.clone(options);
+    optionsSkipFirst.skipFirstLine = true;
+    var importCsv = new ImportCsv(optionsSkipFirst);
+    var i = 0;
+
+    var output = importCsv.getOutput(function(line, cb) {
+      assert.deepEqual(line, expectedResult[i++], 'Returned json object line should be correct');
+      return cb();
+    });
+
+    var dataSkipFirst = fs.readFileSync(skipFirstDataPath);
+    importCsv.write(dataSkipFirst);
+
+    output
+    .on('error', function(err) {
+      assert(false, 'should not pass here');
+    })
+    .on('finish', function() {
+      assert.equal(i, 5, 'should have parsed all lines');
+      done();
+    });
+    importCsv.end();
+  });
+
   it('should parse csv buffer and emit an error on invalid data', function(done) {
     var importCsv = new ImportCsv(options);
     var i = 0;
@@ -345,7 +371,12 @@ describe('Import', function() {
 
     output
     .on('error', function(err) {
-      assert(err.message, 'bad data is not a valid value for column column3 of type number');
+      assert.deepEqual(err.message, 'bad data on row 3 is not a valid value for column column3 of type number');
+      assert.deepEqual(err.code, 'ERR_CSV_IO_INVALID_VALUE');
+      assert.deepEqual(err.meta.value, 'bad data');
+      assert.deepEqual(err.meta.columnName, 'column3');
+      assert.deepEqual(err.meta.columnType, 'number');
+      assert.deepEqual(err.meta.rowNum, 3);
       done();
     })
     .on('finish', function() {
@@ -368,7 +399,12 @@ describe('Import', function() {
 
     output
     .on('error', function(err) {
-      assert(err.message, 'bad data is not a valid value for column column3 of type number');
+      assert.deepEqual(err.message, 'bad data on row 3 is not a valid value for column column3 of type number');
+      assert.deepEqual(err.code, 'ERR_CSV_IO_INVALID_VALUE');
+      assert.deepEqual(err.meta.value, 'bad data');
+      assert.deepEqual(err.meta.columnName, 'column3');
+      assert.deepEqual(err.meta.columnType, 'number');
+      assert.deepEqual(err.meta.rowNum, 3);
       done();
     })
     .on('finish', function() {
