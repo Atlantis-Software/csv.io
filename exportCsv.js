@@ -23,6 +23,7 @@ function exportCsv(param) {
       if (_.isUndefined(val) || _.isNull(val) || (_.isString(val) && !val.length)) {
         return self.displayEmptyValue;
       }
+      val = val.replace(/"/g, '""');
       return '"' + val + '"';
     },
     date: function(column, val) {
