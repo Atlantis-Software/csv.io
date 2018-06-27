@@ -37,7 +37,14 @@ describe('Export', function() {
     },
     {
       id: 5
-    }
+    },
+    {
+      id: 6,
+      someString: 'blabla6 with "quotes"',
+      someDate: new Date('1997-01-01'),
+      someNumber: 984,
+      someBoolean: 0
+    },
   ];
 
 var expectedResultLines = [
@@ -45,7 +52,8 @@ var expectedResultLines = [
   '2;"blabla2";' + data[1].someDate.toString() + ';456;0\n',
   '3;"blabla3";' + data[2].someDate.toString() + ';789;1\n',
   '4;;;null;\n',
-  '5;;;;\n'
+  '5;;;;\n',
+  '6;"blabla6 with ""quotes""";' + data[2].someDate.toString() + ';984;0\n',
 ];
 
 var expectedResult = `1;"blabla1";` + data[0].someDate.toString() + `;123;1
@@ -53,6 +61,7 @@ var expectedResult = `1;"blabla1";` + data[0].someDate.toString() + `;123;1
 3;"blabla3";` + data[2].someDate.toString() + `;789;1
 4;;;null;
 5;;;;
+6;"blabla6 with ""quotes""";' + data[2].someDate.toString() + ';984;0\n
 `;
 
   var options = {
@@ -84,7 +93,7 @@ var expectedResult = `1;"blabla1";` + data[0].someDate.toString() + `;123;1
       assert(false, 'should not pass here');
     })
     .on('finish', function() {
-      assert.equal(i, 5, 'Should have parsed all lines');
+      assert.equal(i, expectedResultLines.length, 'Should have parsed all lines');
       done();
     });
     exportCsv.end();
@@ -111,7 +120,7 @@ var expectedResult = `1;"blabla1";` + data[0].someDate.toString() + `;123;1
       assert(false, 'should not pass here');
     })
     .on('finish', function() {
-      assert.equal(i, 5, 'Should have parsed all lines');
+      assert.equal(i, expectedResultLines.length, 'Should have parsed all lines');
       done();
     });
     inputStream.end();
@@ -142,7 +151,7 @@ var expectedResult = `1;"blabla1";` + data[0].someDate.toString() + `;123;1
       assert(false, 'should not pass here');
     })
     .on('finish', function() {
-      assert.equal(i, 5, 'Should have parsed all lines');
+      assert.equal(i, expectedResultLines.length, 'Should have parsed all lines');
       done();
     });
     inputStream.end();
@@ -180,7 +189,7 @@ var expectedResult = `1;"blabla1";` + data[0].someDate.toString() + `;123;1
       assert(false, 'should not pass here');
     })
     .on('finish', function() {
-      assert.equal(i, 5, 'Should have parsed all lines');
+      assert.equal(i, expectedResultLines.length, 'Should have parsed all lines');
       done();
     });
     inputStream.end();
@@ -211,7 +220,7 @@ var expectedResult = `1;"blabla1";` + data[0].someDate.toString() + `;123;1
       assert(false, 'should not pass here');
     })
     .on('finish', function() {
-      assert.equal(i, 5, 'Should have parsed all lines');
+      assert.equal(i, expectedResultLines.length, 'Should have parsed all lines');
       done();
     });
     exportCsv.end();
@@ -248,7 +257,7 @@ var expectedResult = `1;"blabla1";` + data[0].someDate.toString() + `;123;1
       assert(false, 'should not pass here');
     })
     .on('finish', function() {
-      assert.equal(i, 5, 'Should have parsed all lines');
+      assert.equal(i, expectedResultLines.length, 'Should have parsed all lines');
       done();
     });
     exportCsv.end();
@@ -264,7 +273,7 @@ var expectedResult = `1;"blabla1";` + data[0].someDate.toString() + `;123;1
 
     sinkStream._write = function (chunk, encoding, next) {
       ++i
-      if (++y > 4) {
+      if (++y > 5) {
         y = 0;
       }
       assert.equal(chunk, expectedResultLines[y], 'Returned csv line should be correct');
@@ -291,7 +300,7 @@ var expectedResult = `1;"blabla1";` + data[0].someDate.toString() + `;123;1
       assert(false, 'should not pass here');
     })
     .on('finish', function() {
-      assert.equal(i, 200, 'Should have parsed all lines');
+      assert.equal(i, 240, 'Should have parsed all lines');
       done();
     });
     inputStream.end();
@@ -305,7 +314,7 @@ var expectedResult = `1;"blabla1";` + data[0].someDate.toString() + `;123;1
 
     var output = exportCsv.getOutput(function(line, cb) {
       ++i
-      if (++y > 4) {
+      if (++y > 5) {
         y = 0;
       }
       assert.equal(line, expectedResultLines[y], 'Returned csv line should be correct');
@@ -327,7 +336,7 @@ var expectedResult = `1;"blabla1";` + data[0].someDate.toString() + `;123;1
       assert(false, 'should not pass here');
     })
     .on('finish', function() {
-      assert.equal(i, 200, 'Should have parsed all lines');
+      assert.equal(i, 240, 'Should have parsed all lines');
       done();
     });
     exportCsv.end();
