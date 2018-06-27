@@ -99,6 +99,34 @@ var expectedResult = `1;"blabla1";` + data[0].someDate.toString() + `;123;1
     exportCsv.end();
   });
 
+  it('getOutput() callback first argument should emit an error', function(done) {
+    var exportCsv = new ExportCsv(options);
+    var i = 0;
+
+    var output = exportCsv.getOutput(function(line, cb) {
+      assert.equal(line, expectedResultLines[i++], 'Returned csv string line should be correct');
+      if (i == 3) {
+        return cb(new Error('THIS IS AN ERROR'));
+      }
+      cb();
+    });
+
+    data.forEach(function(line) {
+      exportCsv.write(line);
+    });
+
+    output
+    .on('error', function(err) {
+      assert(err, 'should pass here');
+      assert.equal(err.message, 'THIS IS AN ERROR');
+      done();
+    })
+    .on('finish', function() {
+      assert(false, 'should not pass here');
+    });
+    exportCsv.end();
+  });
+
   it('input should be pipable', function(done) {
     var exportCsv = new ExportCsv(options);
     var i = 0;

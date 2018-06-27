@@ -123,19 +123,19 @@ function exportCsv(param) {
       if (self.sendingHeader) {
         self.sendingHeader = false;
       }
-      var pipeCallback = function() {
-        callback();
+      var pipeCallback = function(err) {
+        callback(err);
       };
       if (streamContext.nbOfPipes) {
-        pipeCallback = function() {
-          callback(null, line);
+        pipeCallback = function(err) {
+          callback(err, line);
         };
       }
       if (line !== "") {
         line += self.rowDelimiter;
         if (self.lineCb) {
-          self.lineCb(line, function() {
-            pipeCallback();
+          self.lineCb(line, function(err) {
+            pipeCallback(err);
           });
         } else {
           pipeCallback();

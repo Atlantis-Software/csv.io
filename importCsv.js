@@ -314,17 +314,17 @@ importCsv.prototype.getPipes = function(options) {
       parsedLine[column.name] = data;
       cb();
     }).serie().done(function() {
-      var pipeCallback = function() {
-        callback();
+      var pipeCallback = function(err) {
+        callback(err);
       };
       if (streamContext.nbOfPipes) {
-        pipeCallback = function() {
-          callback(null, parsedLine);
+        pipeCallback = function(err) {
+          callback(err, parsedLine);
         };
       }
       if (self.lineCb) {
-        self.lineCb(parsedLine, function() {
-          pipeCallback();
+        self.lineCb(parsedLine, function(err) {
+          pipeCallback(err);
         });
       } else {
         pipeCallback();

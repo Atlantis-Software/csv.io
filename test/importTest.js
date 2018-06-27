@@ -45,11 +45,12 @@ describe('Import', function() {
     column3: 2,
     column4: undefined,
     column5: true },
-  { column1: 'SomeTextWithoutQuote5',
-    column2: 'Some text with quote5',
+  { column1: 'SomeTextWithSome"Quote5"',
+    column2: 'Some text "with" a lot of ""quotes"" quote5',
     column3: 3,
     column4: undefined,
-    column5: true } ];
+    column5: true },
+   ];
 
   it('should return info containing size and number of lines when passed a buffer', function(done) {
     var importCsv = new ImportCsv(options);
@@ -81,6 +82,32 @@ describe('Import', function() {
     .on('finish', function() {
       assert.equal(i, 5, 'should have parsed all lines');
       done();
+    });
+    importCsv.end();
+  });
+
+  it('getOutput() callback first argument should emit an error', function(done) {
+    var importCsv = new ImportCsv(options);
+    var i = 0;
+
+    var output = importCsv.getOutput(function(line, cb) {
+      assert.deepEqual(line, expectedResult[i++], 'Returned json object line should be correct');
+      if (i == 3) {
+        return cb(new Error('THIS IS AN ERROR'));
+      }
+      cb();
+    });
+
+    importCsv.write(testData);
+
+    output
+    .on('error', function(err) {
+      assert(err, 'should pass here');
+      assert.equal(err.message, 'THIS IS AN ERROR');
+      done();
+    })
+    .on('finish', function() {
+      assert(false, 'should not pass here');
     });
     importCsv.end();
   });
