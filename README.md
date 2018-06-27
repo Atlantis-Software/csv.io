@@ -1,4 +1,11 @@
 # csv.io
+
+[![npm version](https://badge.fury.io/js/csv.io.svg)](https://www.npmjs.com/csv.io)
+[![Build Status](https://travis-ci.org/Atlantis-Software/csv.io.svg?branch=master)](https://travis-ci.org/Atlantis-Software/csv.io)
+[![Coverage Status](https://coveralls.io/repos/github/Atlantis-Software/csv.io/badge.svg?branch=master)](https://coveralls.io/github/Atlantis-Software/csv.io?branch=master)
+[![NSP Status](https://nodesecurity.io/orgs/atlantis/projects/3c799d7b-23a9-4f48-a858-4259fb351d1c/badge)](https://nodesecurity.io/orgs/atlantis/projects/3c799d7b-23a9-4f48-a858-4259fb351d1c)
+[![Dependencies Status](https://david-dm.org/Atlantis-Software/csv.io.svg)](https://david-dm.org/Atlantis-Software/csv.io)
+
 csv import / export
 
 Csv.io is a node module that provide functions simplifying the import/export of csv. It uses streams and handle backpressure, wich provide good scalability. You can also provide your own formatters, to get exactly the data you want.
