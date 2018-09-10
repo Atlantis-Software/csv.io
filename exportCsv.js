@@ -92,33 +92,43 @@ function exportCsv(param) {
     this.headers = headersObject;
   }
 
-  this.processLine = through2.obj(function(chunk, enc, callback) {
+  this.processLine = through2.obj(function(chunks, enc, callback) {
+    chunks = _.isArray(chunks) ? chunks : [chunks];
     var streamContext = this;
-    var line = "";
-    var index = 0;
-    asynk.each(self.columns, function(column, cb) {
-      var data = chunk[column.name];
+    var lines = "";
+    asynk.each(chunks, function(chunk, mainCb) {
+      var index = 0;
+      var line = "";
+      asynk.each(self.columns, function(column, cb) {
+        var data = chunk[column.name];
 
-      var formatter;
-      if (self.sendingHeader) {
-        formatter = self.formatters['doNothing'];
-      } else {
-        formatter = column.formatter || self.formatters[column.type];
-      }
-      if (!formatter || !_.isFunction(formatter)) {
-        throw new Error('no formatter for column ' + column.name);
-      }
-      if (index > 0) {
-        line += self.delimiter;
-      }
-      ++index;
-      try {
-        data = formatter(column, data);
-      } catch (err) {
-        console.log('Formatting error : ', err);
-      }
-      line += data;
-      cb();
+        var formatter;
+        if (self.sendingHeader) {
+          formatter = self.formatters['doNothing'];
+        } else {
+          formatter = column.formatter || self.formatters[column.type];
+        }
+        if (!formatter || !_.isFunction(formatter)) {
+          throw new Error('no formatter for column ' + column.name);
+        }
+        if (index > 0) {
+          line += self.delimiter;
+        }
+        ++index;
+        try {
+          data = formatter(column, data);
+        } catch (err) {
+          console.log('Formatting error : ', err);
+        }
+        line += data;
+        cb();
+      }).serie().done(function() {
+        if (line !== "") {
+          line += self.rowDelimiter;
+        }
+        lines += line;
+        mainCb();
+      });
     }).serie().done(function() {
       if (self.sendingHeader) {
         self.sendingHeader = false;
@@ -128,13 +138,12 @@ function exportCsv(param) {
       };
       if (streamContext.nbOfPipes) {
         pipeCallback = function(err) {
-          callback(err, line);
+          callback(err, lines);
         };
       }
-      if (line !== "") {
-        line += self.rowDelimiter;
+      if (lines !== "") {
         if (self.lineCb) {
-          self.lineCb(line, function(err) {
+          self.lineCb(lines, function(err) {
             pipeCallback(err);
           });
         } else {
@@ -189,3 +198,4 @@ function exportCsv(param) {
 }
 
 module.exports = exportCsv;
+
