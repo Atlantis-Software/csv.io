@@ -99,6 +99,34 @@ var expectedResult = `1;"blabla1";` + data[0].someDate.toString() + `;123;1
     exportCsv.end();
   });
 
+  it('should transform array of json object into csv', function(done) {
+    var exportCsv = new ExportCsv(options);
+    var i = 0;
+
+    var output = exportCsv.getOutput(function(line, cb) {
+      i++;
+      assert.equal(line, expectedResultLines.join(''), 'Returned csv should be correct');
+      cb();
+    });
+
+    var inputArray = [];
+    data.forEach(function(line) {
+      inputArray.push(line);
+    });
+
+    exportCsv.write(inputArray);
+
+    output
+    .on('error', function(err) {
+      assert(false, 'should not pass here');
+    })
+    .on('finish', function() {
+      assert.equal(i, 1, 'Should have parsed all lines');
+      done();
+    });
+    exportCsv.end();
+  });
+
   it('getOutput() callback first argument should emit an error', function(done) {
     var exportCsv = new ExportCsv(options);
     var i = 0;
@@ -300,7 +328,7 @@ var expectedResult = `1;"blabla1";` + data[0].someDate.toString() + `;123;1
     var sinkStream = new stream.Writable({objectMode: true});
 
     sinkStream._write = function (chunk, encoding, next) {
-      ++i
+      ++i;
       if (++y > 5) {
         y = 0;
       }
@@ -341,7 +369,7 @@ var expectedResult = `1;"blabla1";` + data[0].someDate.toString() + `;123;1
     var y = -1;
 
     var output = exportCsv.getOutput(function(line, cb) {
-      ++i
+      ++i;
       if (++y > 5) {
         y = 0;
       }
@@ -365,6 +393,81 @@ var expectedResult = `1;"blabla1";` + data[0].someDate.toString() + `;123;1
     })
     .on('finish', function() {
       assert.equal(i, 240, 'Should have parsed all lines');
+      done();
+    });
+    exportCsv.end();
+  });
+
+  it('should work with (array) streams even if the internal buffer get full', function(done) {
+    options.showHeaders = false;
+    var exportCsv = new ExportCsv(options);
+    var i = 0;
+    var y = -1;
+    var inputStream = new stream.PassThrough({objectMode: true});
+    var sinkStream = new stream.Writable({objectMode: true});
+
+    sinkStream._write = function (chunk, encoding, next) {
+      ++i;
+      assert.equal(chunk, bigExpectedResult.join(''), 'Returned csv should be correct');
+      next();
+    };
+
+    var output = exportCsv.getOutput();
+
+    inputStream.pipe(exportCsv);
+    output.pipe(sinkStream);
+
+    var bigData = [];
+    var bigExpectedResult = [];
+    for (var z = 0; z < 40; ++z) {
+      bigData.push(data);
+      bigExpectedResult.push(expectedResultLines);
+    }
+    bigData = _.flattenDeep(bigData);
+    bigExpectedResult = _.flattenDeep(bigExpectedResult);
+
+    inputStream.write(bigData);
+
+    sinkStream
+    .on('error', function(err) {
+      assert(false, 'should not pass here');
+    })
+    .on('finish', function() {
+      assert.equal(i, 1, 'Should have parsed all lines');
+      done();
+    });
+    inputStream.end();
+  });
+
+  it('should work with array of objects even if the internal buffer get full', function(done) {
+    options.showHeaders = false;
+    var exportCsv = new ExportCsv(options);
+    var i = 0;
+    var y = -1;
+
+    var output = exportCsv.getOutput(function(line, cb) {
+      ++i;
+      assert.equal(line, bigExpectedResult.join(''), 'Returned csv should be correct');
+      cb();
+    });
+
+    var bigData = [];
+    var bigExpectedResult = [];
+    for (var z = 0; z < 40; ++z) {
+      bigData.push(data);
+      bigExpectedResult.push(expectedResultLines);
+    }
+    bigData = _.flattenDeep(bigData);
+    bigExpectedResult = _.flattenDeep(bigExpectedResult);
+
+    exportCsv.write(bigData);
+
+    output
+    .on('error', function(err) {
+      assert(false, 'should not pass here');
+    })
+    .on('finish', function() {
+      assert(i, 'Should have parsed all lines');
       done();
     });
     exportCsv.end();
