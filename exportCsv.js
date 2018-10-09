@@ -6,7 +6,7 @@ function exportCsv(param) {
   var self = this;
 
   this.textDelimiter = _.isString(param.textDelimiter) ? param.textDelimiter : '"';
-  this.rowDelimiter = param.rowDelimiter || "\n\r";
+  this.rowDelimiter = param.rowDelimiter || "\n";
   this.delimiter = param.delimiter || ";";
   this.showHeaders = !!param.showHeaders;
   this.displayEmptyValue = param.displayEmptyValue || "";
