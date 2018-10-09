@@ -140,6 +140,7 @@ var options = {
   ],
   delimiter: '|', // default to ';',
   rowDelimiter: '\r\n', // default to '\n'
+  textDelimiter: "'", // default to ", you can pass an empty string if you don't want a delimiter
   showHeaders: true, // First line returned will be the columns names, default to false
   displayEmptyValue: 'EMPTY', // Value displayed when a field is empty, default to empty string
   formatters: {
