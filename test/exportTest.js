@@ -612,4 +612,108 @@ var expectedResult = `1;"blabla1";` + data[0].someDate.toString() + `;123;1
     });
     exportCsv.end();
   });
+
+  it('should use custom text delimiter ("$")', function(done) {
+    options.textDelimiter = '$';
+    var exportCsv = new ExportCsv(options);
+    var i = 0;
+
+    var currentData = {
+      id: 1,
+      someString: 'blabla1',
+      someDate: new Date('1995-01-01'),
+      someNumber: 123,
+      someBoolean: 1
+    };
+
+    var expectedData = '1;$blabla1$;' + data[0].someDate.toString() + ';123;1\n';
+
+    var output = exportCsv.getOutput(function(line, cb) {
+      i++;
+      assert.equal(line, expectedData, 'Returned csv string line should be correct');
+      cb();
+    });
+
+    exportCsv.write(currentData);
+
+    output
+    .on('error', function(err) {
+      assert(false, 'should not pass here');
+    })
+    .on('finish', function() {
+      assert.equal(i, 1, 'Should have parsed all lines');
+      done();
+    });
+    exportCsv.end();
+  });
+
+  it('should double custom text delimiter ("$") when found in string', function(done) {
+    options.textDelimiter = '$';
+    var exportCsv = new ExportCsv(options);
+    var i = 0;
+
+    var currentData = {
+      id: 1,
+      someString: 'bla$bla1',
+      someDate: new Date('1995-01-01'),
+      someNumber: 123,
+      someBoolean: 1
+    };
+
+    var expectedData = '1;$bla$$bla1$;' + data[0].someDate.toString() + ';123;1\n';
+
+    var output = exportCsv.getOutput(function(line, cb) {
+      i++;
+      assert.equal(line, expectedData, 'Returned csv string line should be correct');
+      cb();
+    });
+
+    exportCsv.write(currentData);
+
+    output
+    .on('error', function(err) {
+      assert(false, 'should not pass here');
+    })
+    .on('finish', function() {
+      assert.equal(i, 1, 'Should have parsed all lines');
+      done();
+    });
+    exportCsv.end();
+  });
+
+  it('should use custom text delimiter (empty string)', function(done) {
+    options.textDelimiter = '';
+    var exportCsv = new ExportCsv(options);
+    var i = 0;
+
+    var currentData = {
+      id: 1,
+      someString: 'blabla1',
+      someDate: new Date('1995-01-01'),
+      someNumber: 123,
+      someBoolean: 1
+    };
+
+    var expectedData = '1;blabla1;' + data[0].someDate.toString() + ';123;1\n';
+
+    var output = exportCsv.getOutput(function(line, cb) {
+      i++;
+      assert.equal(line, expectedData, 'Returned csv string line should be correct');
+      cb();
+    });
+
+    exportCsv.write(currentData);
+
+    output
+    .on('error', function(err) {
+      assert(false, 'should not pass here');
+    })
+    .on('finish', function() {
+      assert.equal(i, 1, 'Should have parsed all lines');
+      done();
+    });
+    exportCsv.end();
+  });
+
+
 });

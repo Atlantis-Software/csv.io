@@ -5,7 +5,8 @@ var asynk = require('asynk');
 function exportCsv(param) {
   var self = this;
 
-  this.rowDelimiter = param.rowDelimiter || "\n\r";
+  this.textDelimiter = _.isString(param.textDelimiter) ? param.textDelimiter : '"';
+  this.rowDelimiter = param.rowDelimiter || "\n";
   this.delimiter = param.delimiter || ";";
   this.showHeaders = !!param.showHeaders;
   this.displayEmptyValue = param.displayEmptyValue || "";
@@ -23,8 +24,10 @@ function exportCsv(param) {
       if (_.isUndefined(val) || _.isNull(val) || (_.isString(val) && !val.length)) {
         return self.displayEmptyValue;
       }
-      val = val.replace(/"/g, '""');
-      return '"' + val + '"';
+
+      // Should be a regex, but meta-characters (particularly $) are problematic
+      val = val.split(self.textDelimiter).join(self.textDelimiter + self.textDelimiter);
+      return self.textDelimiter + val + self.textDelimiter;
     },
     date: function(column, val) {
       if (_.isNull(val) && column.nullable) {
