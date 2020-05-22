@@ -145,7 +145,7 @@ function importCsv(options) {
   };
 
   this.entryStream
-  .pipe(iconv.decodeStream(encodingCorrespondences[options.encoding] || 'utf8'))
+  .pipe(iconv.decodeStream(encodingCorrespondences[options.encoding] || options.encoding || 'utf8'))
   .pipe(self.parser)
   .pipe(self.transformer)
   .pipe(self.processLine);
